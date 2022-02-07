@@ -7,6 +7,7 @@ name = "main"
 path = "src/main/rust/main.rs"
 
 [dependencies]
+clap = { version = "3.0.14", features = ["derive"] }
 csv = "1.1"
 itertools = "0.10.2"
 rust-htslib = "0.38.2"
