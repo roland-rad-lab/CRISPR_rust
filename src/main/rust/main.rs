@@ -46,7 +46,7 @@ fn too_many_hits (record: &bam::Record, tag: sam::record::data::field::tag::Tag,
     -> io::Result<bool>
 {
     match record.data ().get (tag) {
-        Some(Ok(field)) => field.value().as_int().map(|hits| hits <= n_mismatch).ok_or_else(|| {
+        Some(Ok(field)) => field.value().as_int().map(|hits| hits > n_mismatch).ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
                 format! ("{} expected integer for tag {:?}, got: {:?}", String::from_utf8 (record.read_name ().to_vec ()).expect ("Record name was invalid UTF-8"), tag, field.value ())
@@ -73,6 +73,7 @@ fn fast_read_bam (capacity: usize, bam_file_path: &str, tag_mismatch: sam::recor
     let mut result = collections::HashMap::with_capacity (capacity);
 
     let mut bam_reader = fs::File::open (bam_file_path).map(bam::Reader::new).expect ("Failed to open bam file");
+    let _header: sam::Header = bam_reader.read_header().expect ("Failed to read bam header").parse().expect ("Failed to parse bam header");
     let reference_sequences = bam_reader.read_reference_sequences().expect ("Failed to read reference seuquences");
 
     for r in bam_reader.records ()
