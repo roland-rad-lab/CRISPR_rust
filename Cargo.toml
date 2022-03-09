@@ -10,5 +10,5 @@ path = "src/main/rust/main.rs"
 clap = { version = "3.0.14", features = ["derive"] }
 csv = "1.1"
 itertools = "0.10.2"
-rust-htslib = "0.38.2"
+noodles = { version = "0.20.0", features = ["bam","sam"] }
 
