@@ -118,6 +118,8 @@ fn main ()
 
     println! ("Done make pairs Elapsed time: {:.2?}", before_pair.elapsed ());
 
+    let before_expand = time::Instant::now ();
+
     if args.pair
     {
         assert! (read_one_target_names.len ()==read_two_target_names.len (),"Requested pair mode but the number of references does not match");
@@ -133,6 +135,8 @@ fn main ()
             guide_pairs.entry (TwoInts { a: read_one_tid as i32, b: read_two_tid as i32}).or_insert (0);
         }
     }
+
+    println! ("Done expand Elapsed time: {:.2?}", before_expand.elapsed ());
 
     let mut wtr = csv::WriterBuilder::new ()
         .delimiter (b'\t')
