@@ -2,7 +2,7 @@
 Extraction of CRISPR counts written in rust.
 
 ## Usage
-This program takes two bam files and returns rows based on the target names in the headers (usually your guide names). By default it will return a row for the product of the target names. Alternatively specify --pair to return a row for each pair of target names, taking one from each bam (both files must have the same number and the sequences names must be in the desired order).
+This program takes two bam files and returns rows based on the target names in the headers (usually your guide names). By default it will return a row for the product of the target names. Alternatively specify --pair to return a row for each pair of target names, taking one from each bam (both files must have the same number and the sequence names must be in the desired order).
 
 ### Options
 | type      | long           | Default    | Details                                                                                                                                                                                                               |
@@ -11,8 +11,8 @@ This program takes two bam files and returns rows based on the target names in t
 | uint      | --n-mismatch   | 2          | The value of the SAM format field (specified by --tag-mismatch) must be less than this value.                                                                                                                         |
 | String    | --output-tsv   | counts.tsv | The name of the file where the output counts will be written as tab separated values.                                                                                                                                 |
 | Flag      | --pair         |            | A row will be output for every pair of sequence names from BAM\_R1 and BAM\_R2 (whose headers must have an identical number of sequence names and be in the desired order). The default returns rows for the product. |                          
-| String    | --tag-mismatch | NM         | The name of the SAM format field containing the unsigned integer which will be filtered by comparison with --n-mismatch. Alignments where the value is less than --n-mismatch contibute to counts.                    |
-| String    | <SAMPLE\_NAME> |            | This value will appear in the Sample\_Name column of counts.long.tsv and as the column name in counts.wide.tsv                                                                                                        |
+| String    | --tag-mismatch | NM         | The name of the SAM format field containing the unsigned integer which will be filtered by comparison with --n-mismatch. Alignments where the value is less than --n-mismatch contribute to counts.                   |
+| String    | <SAMPLE\_NAME> |            | This value will appear in the Sample\_Name column of counts.long.tsv and as the column name in counts.wide.tsv (See https://github.com/roland-rad-lab/CRISPR\_analysis)                                               |
 | BAM File  | <BAM\_R1>      |            | BAM file for read one.                                                                                                                                                                                                |
 | BAM File  | <BAM\_R2>      |            | BAM file for read two.                                                                                                                                                                                                |
 
@@ -33,7 +33,7 @@ podman --remote build --no-cache --rm --tag crispr-rust-0.0.3 -f build/Dockerfil
 
 ```
 
-From here we can optionally choose to publish our image to an image repository so others can download it. In this case to our public repo at 
+From here we can optionally choose to publish our image to an image repository so others can download it. In this case to our public repo at [LRZ gitlab](https://gitlab.lrz.de/roland-rad-lab/images-public/container_registry).
 
 ```bash
 
