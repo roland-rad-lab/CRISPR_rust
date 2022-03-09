@@ -3,7 +3,7 @@ name = "pair_count"
 version = "0.0.1"
 
 [[bin]]
-name = "main"
+name = "crispr-rust"
 path = "src/main/rust/main.rs"
 
 [dependencies]
