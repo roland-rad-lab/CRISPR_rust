@@ -2,15 +2,16 @@ FROM rust:bullseye
 RUN apt update
 RUN apt-get -y update
 RUN apt-get -y install \
-        lsb-release \
-        curl \ 
-        htop
-WORKDIR /opt/tools/crispr-rust/0.0.3/bin
+	lsb-release \
+	curl \
+	htop \
+	time
+WORKDIR /opt/tools/crispr-rust/0.0.4/bin
 RUN echo "done"
-WORKDIR /opt/tools/crispr-rust/0.0.3
-RUN curl -L https://github.com/roland-rad-lab/CRISPR_rust/archive/refs/tags/0.0.3.tar.gz > CRISPR_rust-0.0.3.tar.gz && \
-tar -xzf CRISPR_rust-0.0.3.tar.gz && \
-cd CRISPR_rust-0.0.3 && \
-cargo build --release && \
-cp target/release/crispr-rust /opt/tools/crispr-rust/0.0.3/bin/
-ENV PATH="/opt/tools/crispr-rust/0.0.3/bin:${PATH}"
+WORKDIR /opt/tools/crispr-rust/0.0.4
+RUN curl -L https://github.com/roland-rad-lab/CRISPR_rust/archive/refs/tags/0.0.4.tar.gz > CRISPR_rust-0.0.4.tar.gz && \
+	tar -xzf CRISPR_rust-0.0.4.tar.gz && \
+	cd CRISPR_rust-0.0.4 && \
+	cargo build --release && \
+	cp target/release/crispr-rust /opt/tools/crispr-rust/0.0.4/bin
+ENV PATH="/opt/tools/crispr-rust/0.0.4/bin:${PATH}"

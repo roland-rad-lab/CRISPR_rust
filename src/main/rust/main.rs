@@ -25,17 +25,20 @@ struct TwoInts
 #[clap(author, version, about, long_about = None)]
 struct Args
 {
+    #[clap(short, long, parse(try_from_str), default_value = "2")]
+    n_mismatch: u32,
+
     #[clap(short, long, default_value = "counts.tsv")]
     output_tsv: String,
 
     #[clap(short, long)]
+    output_tsv_off_target: Option<String>,
+
+    #[clap(short, long)]
     pair: bool,
 
-    #[clap(short, long, parse(try_from_str), default_value = "2")]
-    n_mismatch: u32,
-
     #[clap(short, long, default_value = "NM")]
-    tag_mismatch: String,
+    tag_mismatch: sam::record::data::field::tag::Tag,
 
     sample_name: String,
     bam_r1: String,
@@ -93,6 +96,9 @@ fn main ()
 {
     let args = Args::parse();
 
+    println! ("Returning reads with {} mismatches in tag: {} ({:?})", args.n_mismatch, args.tag_mismatch.to_string (), args.tag_mismatch);
+    println! ("Paired mode: {}", args.pair);
+
     let read_one_bam_size = fs::metadata (&args.bam_r1).expect ("Failed to read size of bam_one").len ();
     let read_two_bam_size = fs::metadata (&args.bam_r2).expect ("Failed to read size of bam_two").len ();
 
@@ -104,19 +110,15 @@ fn main ()
 
     println! ("read_one_bam_capacity: {}",read_one_bam_capacity);
     println! ("read_two_bam_capacity: {}",read_two_bam_capacity);
-    println! ("Returning reads with {:?} mismatches", args.n_mismatch);
-
-    let tag_mismatch = args.tag_mismatch.parse::<sam::record::data::field::tag::Tag> ().expect ("Failed to parse tag");
 
     let before_read = time::Instant::now ();
 
-    let (read_one_map, read_one_target_names) = fast_read_bam (read_one_bam_capacity, &args.bam_r1, tag_mismatch, args.n_mismatch as i64);
-    let (read_two_map, read_two_target_names) = fast_read_bam (read_two_bam_capacity, &args.bam_r2, tag_mismatch, args.n_mismatch as i64);
+    let (read_one_map, read_one_target_names) = fast_read_bam (read_one_bam_capacity, &args.bam_r1, args.tag_mismatch, args.n_mismatch as i64);
+    let (read_two_map, read_two_target_names) = fast_read_bam (read_two_bam_capacity, &args.bam_r2, args.tag_mismatch, args.n_mismatch as i64);
 
     println! ("Done read pairs Elapsed time: {:.2?}", before_read.elapsed ());
-
-    println! ("read_one_map: {:?}",read_one_map.len ());
-    println! ("read_two_map: {:?}",read_two_map.len ());
+    println! ("read_one_target_names: {} read_one_map: {}",read_one_target_names.len (), read_one_map.len ());
+    println! ("read_two_target_names: {} read_two_map: {}",read_two_target_names.len (), read_two_map.len ());
 
     let before_pair = time::Instant::now ();
 
@@ -135,37 +137,56 @@ fn main ()
 
     println! ("Done make pairs Elapsed time: {:.2?}", before_pair.elapsed ());
 
-    let before_expand = time::Instant::now ();
-
-    if args.pair
-    {
-        assert! (read_one_target_names.len ()==read_two_target_names.len (),"Requested pair mode but the number of references does not match");
-        for (read_one_tid, read_two_tid) in itertools::zip (0..read_one_target_names.len (), 0..read_two_target_names.len ())
-        {
-            guide_pairs.entry (TwoInts { a: bam::record::ReferenceSequenceId::from (read_one_tid), b: bam::record::ReferenceSequenceId::from (read_two_tid) }).or_insert (0);
-        }
-    }
-    else
-    {
-        for (read_one_tid, read_two_tid) in itertools::iproduct! (0..read_one_target_names.len (), 0..read_two_target_names.len ())
-        {
-            guide_pairs.entry (TwoInts { a: bam::record::ReferenceSequenceId::from (read_one_tid), b: bam::record::ReferenceSequenceId::from (read_two_tid) }).or_insert (0);
-        }
-    }
-
-    println! ("Done expand Elapsed time: {:.2?}", before_expand.elapsed ());
-
     let mut wtr = csv::WriterBuilder::new ()
         .delimiter (b'\t')
         .from_path (&args.output_tsv).expect ("Failed to open output tsv");
 
     wtr.write_record (&["Sample_Name", "R1_hit", "R2_hit", "count"]).expect ("Failed to write output header");
 
-    for (guide_pair, count) in guide_pairs
+    if args.pair
     {
-        let guide_pair_a_name = read_one_target_names[usize::try_from (guide_pair.a).expect ("Failed to convert tid to index, do you still have an unmapped read in bam one?")].clone ();
-        let guide_pair_b_name = read_two_target_names[usize::try_from (guide_pair.b).expect ("Failed to convert tid to index, do you still have an unmapped read in bam two?")].clone ();
-        wtr.serialize ((&args.sample_name, guide_pair_a_name,guide_pair_b_name,count)).expect ("Failed to write tsv line");
+        assert! (read_one_target_names.len ()==read_two_target_names.len (),"Requested pair mode but the number of references does not match");
+        for (read_one_tid, read_two_tid) in itertools::zip (0..read_one_target_names.len (), 0..read_two_target_names.len ())
+        {
+            let key = TwoInts { a: bam::record::ReferenceSequenceId::from (read_one_tid), b: bam::record::ReferenceSequenceId::from (read_two_tid) };
+            let count = guide_pairs.get (&key).unwrap_or (&0);
+
+            let guide_pair_a_name = read_one_target_names[usize::try_from (key.a).expect ("Failed to convert tid to index, do you still have an unmapped read in bam one?")].clone ();
+            let guide_pair_b_name = read_two_target_names[usize::try_from (key.b).expect ("Failed to convert tid to index, do you still have an unmapped read in bam two?")].clone ();
+
+            wtr.serialize ((&args.sample_name, guide_pair_a_name,guide_pair_b_name,count)).expect ("Failed to write tsv line");
+            guide_pairs.remove (&key);
+        }
+
+        if let Some (output_tsv_off_target) = args.output_tsv_off_target
+        {
+            let mut wtr_off_target = csv::WriterBuilder::new ()
+                .delimiter (b'\t')
+                .from_path (&output_tsv_off_target).expect ("Failed to open off target output tsv");
+
+            wtr_off_target.write_record (&["Sample_Name", "R1_hit", "R2_hit", "count"]).expect ("Failed to write output header");
+
+            for (guide_pair, count) in guide_pairs
+            {
+                let guide_pair_a_name = read_one_target_names[usize::try_from (guide_pair.a).expect ("Failed to convert tid to index, do you still have an unmapped read in bam one?")].clone ();
+                let guide_pair_b_name = read_two_target_names[usize::try_from (guide_pair.b).expect ("Failed to convert tid to index, do you still have an unmapped read in bam two?")].clone ();
+
+                wtr_off_target.serialize ((&args.sample_name, guide_pair_a_name,guide_pair_b_name,count)).expect ("Failed to write tsv line");
+            }
+        }
+    }
+    else
+    {
+        for (read_one_tid, read_two_tid) in itertools::iproduct! (0..read_one_target_names.len (), 0..read_two_target_names.len ())
+        {
+            let key = TwoInts { a: bam::record::ReferenceSequenceId::from (read_one_tid), b: bam::record::ReferenceSequenceId::from (read_two_tid) };
+            let count = guide_pairs.get (&key).unwrap_or (&0);
+
+            let guide_pair_a_name = read_one_target_names[usize::try_from (key.a).expect ("Failed to convert tid to index, do you still have an unmapped read in bam one?")].clone ();
+            let guide_pair_b_name = read_two_target_names[usize::try_from (key.b).expect ("Failed to convert tid to index, do you still have an unmapped read in bam two?")].clone ();
+
+            wtr.serialize ((&args.sample_name, guide_pair_a_name,guide_pair_b_name,count)).expect ("Failed to write tsv line");
+        }
     }
 }
 
